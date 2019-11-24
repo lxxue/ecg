@@ -7,11 +7,14 @@ import json
 import keras
 import numpy as np
 import os
+import os.path as osp
 import random
 import time
+import pandas as pd
 
 import network
-import load
+# import load
+import myload as load
 import util
 
 MAX_EPOCHS = 100
@@ -29,12 +32,46 @@ def get_filename_for_saving(save_dir):
 
 def train(args, params):
 
-    print("Loading training set...")
-    train = load.load_dataset(params['train'])
-    print("Loading dev set...")
-    dev = load.load_dataset(params['dev'])
+    x_fname = "examples/cinc17/data/X_train.csv"
+    y_fname = "examples/cinc17/data/y_train.csv"
+    x_npy_fname = "examples/cinc17/data/x_train.npy"
+    y_npy_fname = "examples/cinc17/data/y_train.npy"
+
+    STEP = 256
+    print("Loading dataset...")
+    if osp.isfile(x_npy_fname):
+        x = np.load(x_npy_fname)
+    else:
+        x = pd.read_csv(x_fname)
+        x = x.drop(['id'], axis=1)
+        x = x.fillna(0)
+        x = x.values
+        np.save(x_npy_fname, x)
+    
+    x_list = []
+    for i in range(len(x)):
+        x_i_end = x[i].nonzero()[0][-1] + 1
+        x_i_end = STEP * int((x_i_end) / STEP) 
+        # print(x_i_end)
+        x_list.append(x[i][:x_i_end])
+
+
+    if osp.isfile(y_npy_fname):
+        y = np.load(y_npy_fname)
+    else:
+        y = pd.read_csv(y_fname)
+        y = y.drop(['id'], axis=1)
+        y = y.values.squeeze()
+        np.save(y_npy_fname, y)
+    print("done")
+
+    train_idx = np.load(params['train_idx_fname'])
+    dev_idx = np.load(params['dev_idx_fname'])
+    
+    train = load.my_load_dataset(train_idx, x_list, y)
+    dev = load.my_load_dataset(dev_idx, x_list, y)
     print("Building preprocessor...")
-    preproc = load.Preproc(*train)
+    preproc = load.MyPreprocess(*train)
     print("Training size: " + str(len(train[0])) + " examples.")
     print("Dev size: " + str(len(dev[0])) + " examples.")
 
@@ -64,8 +101,8 @@ def train(args, params):
     batch_size = params.get("batch_size", 32)
 
     if params.get("generator", False):
-        train_gen = load.data_generator(batch_size, preproc, *train)
-        dev_gen = load.data_generator(batch_size, preproc, *dev)
+        train_gen = load.my_data_generator(batch_size, preproc, *train)
+        dev_gen = load.my_data_generator(batch_size, preproc, *dev)
         model.fit_generator(
             train_gen,
             steps_per_epoch=int(len(train[0]) / batch_size),

@@ -23,6 +23,7 @@ def data_generator(batch_size, preproc, x, y):
     while True:
         for batch in batches:
             x, y = zip(*batch)
+            print(y)
             yield preproc.process(x, y)
 
 class Preproc:
@@ -83,10 +84,11 @@ def load_ecg(record):
     return ecg[:trunc_samp]
 
 if __name__ == "__main__":
-    data_json = "examples/cinc17/train.json"
+    data_json = "../examples/cinc17/train.json"
     train = load_dataset(data_json)
     preproc = Preproc(*train)
     gen = data_generator(32, preproc, *train)
     for x, y in gen:
+        print(x, y)
         print(x.shape, y.shape)
         break
